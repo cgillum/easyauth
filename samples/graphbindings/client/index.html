@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <script src="//ajax.aspnetcdn.com/ajax/jQuery/jquery-3.3.1.min.js"></script>
+    <script src="//zumo.blob.core.windows.net/sdk/azure-mobile-apps-client.min.js"></script>
+    <title>Add Row to Excel Table</title>
+</head>
+<body style="font-family:Arial, Helvetica, sans-serif">
+    <a id="login" href="#">Log in with Azure AD</a>
+    <h2>Add Row to Table / 新しい行を追加します</h2>
+    <form id="form">
+        Product / 製品:<br/><input id="product" type="text" name="Product" /><br />
+        Price / 価格:<br /><input id="price" type="text" name="Price" /><br />
+        <p><input type="submit" value="Submit" /></p>
+    </form>
+    <script>
+        $(document).ready(function () {
+            var appUrl = 'https://easyauth-graphbindings.azurewebsites.net';
+            var client = new WindowsAzure.MobileServiceClient(appUrl);
+
+            $(':input').prop('disabled', true);
+
+            $('#login').click(function () {
+                console.log('initiating login');
+                var options = {
+                    parameters: {
+                        resource: 'https://graph.microsoft.com'
+                    }
+                };
+
+                // Opens a popup window to allow the user to log in.
+                // Two server-side requirements for login to work:
+                //   1. ExternalRedirectUris is configured to allow the client domain
+                //   2. CORS is configured to allow traffic from the client domain
+                client.loginWithOptions('aad', options).done(function (results) {
+                    console.log("Login result: " + JSON.stringify(results));
+                    console.log('You are now logged in as ' + results.userId);
+                    $(':input').prop('disabled', false);
+                }, function (err) {
+                    // a 'cancelled' error is reported, but the login succeeds
+                });
+            });
+
+            $('#form').submit(function (e) {
+                e.preventDefault();
+
+                var payload = {};
+                payload.Product = $('#product').val();
+                payload.Price = $('#price').val();
+
+                var jsonPayload = JSON.stringify(payload);
+                console.log('Submitting payload: ' + jsonPayload);
+
+                $(':input').prop('disabled', true);
+
+                var functionUrl = appUrl + '/api/AddRowToExcelTableCSharp';
+                $.ajax({
+                    method: 'POST',
+                    url: functionUrl,
+                    headers: { 'x-zumo-auth': client.currentUser.mobileServiceAuthenticationToken },
+                    contentType: 'application/json',
+                    data: jsonPayload,
+                    success: function (res, status) {
+                        console.log('Payload submitted successfully: ' + status);
+                        $('#product').val('');
+                        $('#price').val('');
+                    },
+					complete: function () {
+						$(':input').prop('disabled', false);
+					}
+                });
+            });
+        });
+    </script>
+</body>
+</html>
